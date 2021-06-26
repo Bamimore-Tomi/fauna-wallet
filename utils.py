@@ -1,4 +1,4 @@
-import os, json
+import os, json, base64, time
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -26,14 +26,12 @@ def load_messages():
 
 def wallet_name_validator(text: str) -> str:
     text = str(text).strip()
-    if len(text) > 12:
+    if len(text) > 12 or len(text) < 1:
         return False, None
-    if text.split(" ") > 1:
-        return False, None
-    return text
+    return True, text.lower()
 
 
-def _generate_fernet_key(self, master_key: str, salt: str) -> str:
+def _generate_fernet_key(master_key: str, salt: str) -> str:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA512(),
         length=32,
@@ -45,34 +43,34 @@ def _generate_fernet_key(self, master_key: str, salt: str) -> str:
     return key.decode("utf-8")
 
 
-def _encrypt_private_key(self, private_key: str, fernet_key: str) -> str:
+def _encrypt_private_key(private_key: str, fernet_key: str) -> str:
     encryptor = Fernet(fernet_key)
     hash = encryptor.encrypt(private_key.encode())
     return hash.decode()
 
 
-def _decrypt_private_key(self, hash, key) -> str:
+def _decrypt_private_key(hash, key) -> str:
     decryptor = Fernet(key)
     private_key = decryptor.decrypt(hash.encode())
     return private_key.decode()
 
 
-def create_wallet(user_id, wallet_name) -> bool:
+def create_wallet(client, user_id, wallet_name) -> bool:
     tron = Tron()
     account = tron.create_account
-    address = account.address.base58
+    address = account.address
     fernet_key = _generate_fernet_key(os.getenv("MASTER"), os.getenv("SALT"))
     encrypted_private_key = _encrypt_private_key(account.private_key, fernet_key)
     wallet = client.query(
         q.create(
-            q.collection("user"),
+            q.collection("wallet"),
             {
                 "data": {
                     "user_id": user_id,
                     "wallet_name": wallet_name,
                     "encrypted_private_key": encrypted_private_key,
-                    "public_key": public_key,
-                    "wallet_address": address,
+                    "public_key": account.public_key,
+                    "wallet_address": dict(address),
                     "wallet_account_balance": 0.0,
                     "transactions": [],
                     "date_generated": time.time(),
@@ -80,4 +78,4 @@ def create_wallet(user_id, wallet_name) -> bool:
             },
         )
     )
-    return True
+    return address.base58

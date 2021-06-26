@@ -83,7 +83,18 @@ def create_wallet(update, context):
     chat_id = update.effective_chat.id
     valid, wallet_name = utils.wallet_name_validator(update.message.text)
     while valid is False:
-        context.bot.send_message(chat_id=chat_id, text=messages["newWallet"])
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["newWallet"],
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
+        return ASK_WALLET_NAME
+    address = utils.create_wallet(client, chat_id, wallet_name)
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=messages["createWalletSuccess"].format(wallet_name, address),
+        parse_mode=telegram.ParseMode.MARKDOWN,
+    )
 
 
 def main():
