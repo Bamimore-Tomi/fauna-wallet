@@ -1,4 +1,4 @@
-import os
+import os, json
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -9,4 +9,7 @@ def load_db():
     client = FaunaClient(secret=os.getenv("FAUNA-KEY"))
     return client
 
-
+def load_messages():
+    f = open("messages.json","r")
+    messages = json.load(f)
+    return messages

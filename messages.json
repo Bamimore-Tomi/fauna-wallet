@@ -1,0 +1,7 @@
+{
+    "welcome":"Welcome to fauna-wallet. You account has successfully been registered.",
+    "help":"*Help Commands*:\n* - To Create a new wallet /NewWallet\n* - To Delete a well /DeleteWallet\n* - To send tokens to another wallet /SendToken\n* - To get QR code and address of a wallet /WalletDetails\n* - To get all transaction details to a particular wallet /WalletHistory\n\n\n*To get this help message again /help ",
+    "newWallet": "What whould you like to name your wallet. e.g Saving, Business e.t.c \n\n\n*Must not contain spaces and must be less than 12 characters*"
+
+    
+}
