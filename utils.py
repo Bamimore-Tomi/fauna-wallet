@@ -1,4 +1,4 @@
-import os, json, base64, time
+import os, json, base64, time, io, qrcode, string, random
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -32,7 +32,17 @@ def wallet_name_validator(text: str) -> str:
     text = str(text).strip()
     if len(text) > 12 or len(text) < 1:
         return False, None
+    if len(text.split(" ")) > 1:
+        return False, None
     return True, text.lower()
+
+
+def random_string(length=12):
+    lowercase = string.ascii_lowercase
+    uppercase = string.ascii_uppercase
+    letters = lowercase + uppercase
+    secret = "".join(random.choice(letters) for i in range(length))
+    return secret
 
 
 def _generate_fernet_key(master_key: str, salt: str) -> str:
@@ -68,7 +78,7 @@ def save_user(client, data):
     )
 
 
-def get_wallets(client, user_id):
+def get_wallets(client, user_id, wallet_name=None):
     wallets = client.query(q.paginate(q.match(q.index("wallet_index"), user_id)))
     if len(wallets["data"]) < 1:
         raise errors.WalletNotFound
@@ -77,6 +87,12 @@ def get_wallets(client, user_id):
         q.get(q.ref(q.collection("wallet"), wallet.id())) for wallet in wallets["data"]
     ]
     wallets_data = client.query(wallets_data)
+    if wallet_name != None:
+        for i in wallets_data:
+            if i["data"]["wallet_name"] == wallet_name:
+                wallet = i["data"]
+                return wallet
+        raise errors.WalletNotFound
     return [i["data"] for i in wallets_data]
 
 
@@ -84,6 +100,58 @@ def generate_wallet_menu(client, user_id):
     data = get_wallets(client, user_id)
     menu = keyboards.wallet_menu(data)
     return menu
+
+
+def generate_wallet_keyboard(client, user_id):
+    data = get_wallets(client, user_id)
+    keyboard = keyboards.wallet_keyboard(data)
+    return keyboard
+
+
+def _validate_address(address):
+    tron = Tron()
+    validate = tron.trx.validate_address(address)
+    if validate.get("result") == False:
+        raise ValueError(validate.get("message"))
+    return address
+
+
+def get_balance(address):
+    tron = Tron()
+    return tron.fromSun(tron.trx.get_balance(address))
+
+
+def send_trx(sender_private_key, reciever_address, amount):
+    fernet_key = _generate_fernet_key(os.getenv("MASTER"), os.getenv("SALT"))
+    private_key = _decrypt_private_key(sender_private_key, fernet_key)
+    tron = Tron()
+    tron.private_key = private_key
+    tron.default_address = tron.address.from_private_key(tron.private_key)["base58"]
+    reciever_address = _validate_address(reciever_address)
+    balance = get_balance(tron.default_address)
+    if amount > balance:
+        raise errors.InsufficientBalance
+    transaction = tron.trx.send(reciever_address, amount)
+    return True
+
+
+def _get_qr_code(wallet_address):
+    img = qrcode.make(wallet_address)
+    imgByteArr = io.BytesIO()
+    img.save(imgByteArr, format=img.format)
+    imgByteArr = imgByteArr.getvalue()
+    # return base64.encodebytes(imgByteArr)
+    return imgByteArr
+
+
+def get_wallet_detail(client, user_id, wallet_name):
+    wallet = get_wallets(client, user_id, wallet_name)
+    qr_byte = _get_qr_code(wallet["wallet_address"])
+    file_name = random_string(length=5) + ".png"
+    open(file_name, "wb").write(qr_byte)
+    stream = open(file_name, "rb")
+    os.remove(file_name)
+    return wallet, stream
 
 
 def create_wallet(client, user_id, wallet_name) -> bool:
@@ -114,4 +182,5 @@ def create_wallet(client, user_id, wallet_name) -> bool:
 
 if __name__ == "__main__":
     client = load_db()
-    print(generate_wallet_menu(client, 1766860738))
+    # print(generate_wallet_menu(client, 1766860738))
+    get_wallet_detail(client, 1766860738, "xoxo")

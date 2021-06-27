@@ -26,10 +26,10 @@ import errors
 load_dotenv()
 client = utils.load_db()
 messages = utils.load_messages()
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
-)
-ASK_WALLET_NAME = range(0)
+# logging.basicConfig(
+#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
+# )
+ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER = range(4)
 
 
 def start(update, context):
@@ -87,6 +87,99 @@ def new_wallet(update, context):
     return ASK_WALLET_NAME
 
 
+def wallet_detail_callback(update, context):
+    chat_id = update.effective_chat.id
+    query_data = update.callback_query.data
+    try:
+        wallet, stream = utils.get_wallet_detail(client, chat_id, query_data)
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["walletDetail"].format(
+                wallet["wallet_name"],
+                wallet["wallet_address"]["base58"],
+                wallet["wallet_account_balance"],
+            ),
+        )
+        context.bot.sendPhoto(chat_id=chat_id, photo=stream)
+    except errors.WalletNotFound:
+        context.bot.send_message(
+            chat_id=chat_id, text=messages["walletNotFound"].format(query_data)
+        )
+
+
+def send_token(update, context):
+    chat_id = update.effective_chat.id
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=messages["sendTokenInstruction"],
+        reply_markup=utils.generate_wallet_keyboard(client, chat_id),
+    )
+    return WALLET_SELECTION
+
+
+def ask_amount(update, context):
+    chat_id = update.effective_chat.id
+    wallet_name = update.message.text.strip().lower()
+
+    try:
+        wallet = utils.get_wallets(client, chat_id, wallet_name=wallet_name)
+        context.user_data["current_wallet"] = wallet
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["askAmount"].format(wallet["wallet_account_balance"]),
+        )
+    except errors.WalletNotFound:
+        context.bot.send_message(
+            chat_id=chat_id, text=messages["walletNotFound"].format(query_data)
+        )
+    return AMOUNT_NUMBER
+
+
+def ask_reciever_address(update, context):
+    chat_id = update.effective_chat.id
+    amount = update.message.text
+    is_valid = False
+    try:
+        amount = int(amount)
+        context.user_data["current_amount"] = amount
+        is_valid = False
+    except:
+        is_valid = False
+    while is_valid == False:
+        return WALLET_SELECTION
+    context.bot.send_message(chat_id=chat_id, text=messages["recieverAddress"])
+
+
+def send_transaction(update, context):
+    chat_id = update.effective_chat.id
+    address = update.message.text.strip()
+    try:
+        send = utils.send_trx(
+            context.user_data["current_wallet"]["encrypted_private_key"],
+            address,
+            context.user_data["current_amount"],
+        )
+        if send == True:
+            context.bot.send_message(
+                chat_id=chat_id,
+                text=messages["transactionSuccess"].format(
+                    context.user_data["current_amount"],
+                    context.user_data["current_wallet"]["wallet_name"],
+                    address,
+                ),
+            )
+    except errors.InsufficientBalance:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["transactionUnsuccessful"].format(
+                context.user_data["current_amount"],
+                context.user_data["current_wallet"]["wallet_name"],
+                address,
+                "Insufficient Balance",
+            ),
+        )
+
+
 def create_wallet(update, context):
     chat_id = update.effective_chat.id
     valid, wallet_name = utils.wallet_name_validator(update.message.text)
@@ -103,7 +196,7 @@ def create_wallet(update, context):
         text=messages["createWalletSuccess"].format(wallet_name, address),
         parse_mode=telegram.ParseMode.MARKDOWN,
     )
-    return 0
+    return -1
 
 
 def all_wallet(update, context):
@@ -113,6 +206,7 @@ def all_wallet(update, context):
         text=messages["allWalletFound"],
         reply_markup=utils.generate_wallet_menu(client, chat_id),
     )
+    return ALL_WALLET
 
 
 def main():
@@ -125,14 +219,29 @@ def main():
         states={
             ASK_WALLET_NAME: [MessageHandler(Filters.regex(r"\w*"), create_wallet)]
         },
-        fallbacks=[CommandHandler("NewWallet", new_wallet)],
+        fallbacks=[CommandHandler("newwallet", new_wallet)],
     )
-    all_wallet_ = CommandHandler("AllWallet", all_wallet)
+    wallet_operation = ConversationHandler(
+        entry_points=[CommandHandler("allwallet", all_wallet)],
+        states={ALL_WALLET: [CallbackQueryHandler(wallet_detail_callback)]},
+        fallbacks=[CommandHandler("allwallet", all_wallet)],
+    )
+    send_operation = ConversationHandler(
+        entry_points=[CommandHandler("sendtoken", send_token)],
+        states={
+            WALLET_SELECTION: [MessageHandler(Filters.regex(r"\w*"), ask_amount)],
+            AMOUNT_NUMBER: [
+                MessageHandler(Filters.regex(r"\w*"), ask_reciever_address)
+            ],
+        },
+        fallbacks=[CommandHandler("sendtoken", send_token)],
+    )
 
     dispatcher.add_handler(entry_)
     dispatcher.add_handler(helper_)
     dispatcher.add_handler(new_wallet_conv)
-    dispatcher.add_handler(all_wallet_)
+    dispatcher.add_handler(wallet_operation)
+    dispatcher.add_handler(send_operation)
 
     updater.start_polling()
     updater.idle()
