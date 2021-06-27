@@ -18,8 +18,10 @@ from telegram import (
 import telegram
 from faunadb import query as q
 from faunadb.objects import Ref
+from faunadb.errors import NotFound
 from dotenv import load_dotenv
 import utils
+import errors
 
 load_dotenv()
 client = utils.load_db()
@@ -34,22 +36,28 @@ def start(update, context):
     chat_id = update.effective_chat.id
     try:
         user = client.query(q.get(q.match(q.index("user_index"), chat_id)))
-    except Exception as e:
-        print(e)
-        user = client.query(
-            q.create(
-                q.collection("user"),
-                {
-                    "data": {
-                        "user_id": chat_id,
-                        "username": update.message.chat.username,
-                        "firstname": update.message.chat.first_name,
-                        "lastname": update.message.chat.last_name,
-                        "date": datetime.now(pytz.UTC),
-                    }
-                },
+        try:
+            context.bot.send_message(
+                chat_id=chat_id,
+                text=messages["allWalletFound"],
+                reply_markup=utils.generate_wallet_menu(client, chat_id),
             )
-        )
+        except errors.WalletNotFound:
+            context.bot.send_message(
+                chat_id=chat_id,
+                text=messages["allWalletNotFound"],
+                parse_mode=telegram.ParseMode.MARKDOWN,
+            )
+
+    except NotFound:
+        data = {
+            "user_id": chat_id,
+            "username": update.message.chat.username,
+            "firstname": update.message.chat.first_name,
+            "lastname": update.message.chat.last_name,
+            "date": datetime.now(pytz.UTC),
+        }
+        utils.save_user(client, data)
         context.bot.send_message(
             chat_id=chat_id,
             text=messages["welcome"],

@@ -2,5 +2,7 @@
     "welcome": "Welcome to fauna-wallet. You account has successfully been registered.",
     "help": "*Help Commands*:\n* - To Create a new wallet /NewWallet\n* - To Delete a well /DeleteWallet\n* - To send tokens to another wallet /SendToken\n* - To get QR code and address of a wallet /WalletDetails\n* - To get all transaction details to a particular wallet /WalletHistory\n\n\n*To get this help message again /help ",
     "newWallet": "What whould you like to name your wallet. e.g Saving, Business e.t.c \n\n\n*Must not contain spaces and must be less than 12 characters* ",
-    "createWalletSuccess": "*Successfully created new TRX wallet {}*\n\nWallet address is {}.\n\nPlease note that sending anyother asset apart from Tron will lead to permananet loss of the assess."
+    "createWalletSuccess": "*Successfully created new TRX {}*\n\nWallet address is {}.\n\nPlease note that sending anyother asset apart from Tron will lead to permananet loss of the assess.",
+    "allWalletFound": "Your TRX wallets registered on fauna-wallet",
+    "allWalletNotFound": "You do not have any wallet registered on fauna-wallet\n\n*To create a new wallet /NewWallet*."
 }

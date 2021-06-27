@@ -2,6 +2,7 @@ import os, json, base64, time
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
+from faunadb.errors import NotFound
 from tronapi import Tron
 from tronapi.common.account import PrivateKey
 from dotenv import load_dotenv
@@ -10,6 +11,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
+
+import keyboards
+import errors
 
 
 def load_db():
@@ -55,6 +59,33 @@ def _decrypt_private_key(hash, key) -> str:
     return private_key.decode()
 
 
+def save_user(client, data):
+    user = client.query(
+        q.create(
+            q.collection("user"),
+            {"data": data},
+        )
+    )
+
+
+def get_wallets(client, user_id):
+    wallets = client.query(q.paginate(q.match(q.index("wallet_index"), user_id)))
+    if len(wallets["data"]) < 1:
+        raise errors.WalletNotFound
+
+    wallets_data = [
+        q.get(q.ref(q.collection("wallet"), wallet.id())) for wallet in wallets["data"]
+    ]
+    wallets_data = client.query(wallets_data)
+    return [i["data"] for i in wallets_data]
+
+
+def generate_wallet_menu(client, user_id):
+    data = get_wallets(client, user_id)
+    menu = keyboards.wallet_menu(data)
+    return menu
+
+
 def create_wallet(client, user_id, wallet_name) -> bool:
     tron = Tron()
     account = tron.create_account
@@ -79,3 +110,8 @@ def create_wallet(client, user_id, wallet_name) -> bool:
         )
     )
     return address.base58
+
+
+if __name__ == "__main__":
+    client = load_db()
+    print(generate_wallet_menu(client, 1766860738))
