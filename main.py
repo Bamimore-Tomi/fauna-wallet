@@ -103,6 +103,16 @@ def create_wallet(update, context):
         text=messages["createWalletSuccess"].format(wallet_name, address),
         parse_mode=telegram.ParseMode.MARKDOWN,
     )
+    return 0
+
+
+def all_wallet(update, context):
+    chat_id = update.effective_chat.id
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=messages["allWalletFound"],
+        reply_markup=utils.generate_wallet_menu(client, chat_id),
+    )
 
 
 def main():
@@ -111,16 +121,18 @@ def main():
     entry_ = CommandHandler("start", start)
     helper_ = CommandHandler("help", helper)
     new_wallet_conv = ConversationHandler(
-        entry_points=[CommandHandler("NewWallet", new_wallet)],
+        entry_points=[CommandHandler("newwallet", new_wallet)],
         states={
             ASK_WALLET_NAME: [MessageHandler(Filters.regex(r"\w*"), create_wallet)]
         },
         fallbacks=[CommandHandler("NewWallet", new_wallet)],
     )
+    all_wallet_ = CommandHandler("AllWallet", all_wallet)
 
     dispatcher.add_handler(entry_)
     dispatcher.add_handler(helper_)
     dispatcher.add_handler(new_wallet_conv)
+    dispatcher.add_handler(all_wallet_)
 
     updater.start_polling()
     updater.idle()
