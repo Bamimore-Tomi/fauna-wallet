@@ -29,7 +29,7 @@ messages = utils.load_messages()
 # logging.basicConfig(
 #     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
 # )
-ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER = range(4)
+ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER , RECIEVER_ADDRESS= range(5)
 
 
 def start(update, context):
@@ -148,6 +148,7 @@ def ask_reciever_address(update, context):
     while is_valid == False:
         return WALLET_SELECTION
     context.bot.send_message(chat_id=chat_id, text=messages["recieverAddress"])
+    return RECIEVER_ADDRESS
 
 
 def send_transaction(update, context):
@@ -178,6 +179,7 @@ def send_transaction(update, context):
                 "Insufficient Balance",
             ),
         )
+        return WALLET_SELECTION
 
 
 def create_wallet(update, context):
@@ -232,7 +234,8 @@ def main():
             WALLET_SELECTION: [MessageHandler(Filters.regex(r"\w*"), ask_amount)],
             AMOUNT_NUMBER: [
                 MessageHandler(Filters.regex(r"\w*"), ask_reciever_address)
-            ],
+            ]
+            RECIEVER_ADDRESS: [MessageHandler(Filters.regex(r"\w*"), send_transaction)]
         },
         fallbacks=[CommandHandler("sendtoken", send_token)],
     )
