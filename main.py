@@ -1,6 +1,7 @@
 import os, logging
 from datetime import datetime
 import pytz
+from multiprocessing import Process
 from telegram.ext import Updater
 from telegram.ext import (
     CommandHandler,
@@ -25,6 +26,7 @@ import errors
 
 load_dotenv()
 client = utils.load_db()
+Process(target=utils.blockchain_runner).start()
 messages = utils.load_messages()
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG

@@ -1,4 +1,4 @@
-import os, json, base64, base58, time, io, qrcode, string, random, telegram
+import os, json, base64, base58, time, io, string, random
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -6,7 +6,7 @@ from faunadb.errors import NotFound
 from tronapi import Tron
 from tronapi.common.account import PrivateKey
 from dotenv import load_dotenv
-
+import telegram, qrcode
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -212,10 +212,10 @@ def save_wallets(client):
     json.dump(wallets, f)
 
 
-def blockchain_runner(client):
+def blockchain_runner():
     # This function runs throgh the block chain and check for transactions in know wallets
     # It adds and subtracts to wallet balance if a transaction is made from or two a wallet
-
+    client = load_db()
     tron = Tron()
 
     while True:
