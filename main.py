@@ -126,7 +126,6 @@ def send_token(update, context):
 def ask_amount(update, context):
     chat_id = update.effective_chat.id
     wallet_name = update.message.text.strip().lower()
-
     try:
         wallet = utils.get_wallets(client, chat_id, wallet_name=wallet_name)
         context.user_data["current_wallet"] = wallet
@@ -165,27 +164,27 @@ def ask_reciever_address(update, context):
 
 
 def send_transaction(update, context):
-
+    print("AT SEND TRANSACTION")
     chat_id = update.effective_chat.id
     address = update.message.text.strip()
     print(address)
     try:
-        send = utils.send_trx(
+        utils.send_trx(
             context.user_data["current_wallet"]["encrypted_private_key"],
             address,
             context.user_data["current_amount"],
         )
-        if send == True:
-            context.bot.send_message(
-                chat_id=chat_id,
-                text=messages["transactionSuccess"].format(
-                    context.user_data["current_amount"],
-                    context.user_data["current_wallet"]["wallet_name"],
-                    address,
-                ),
-                parse_mode=telegram.ParseMode.MARKDOWN,
-            )
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["transactionSuccess"].format(
+                context.user_data["current_amount"],
+                context.user_data["current_wallet"]["wallet_name"],
+                address,
+            ),
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
     except errors.InsufficientBalance:
+        print("insufficient balance")
         context.bot.send_message(
             chat_id=chat_id,
             text=messages["transactionUnsuccessful"].format(

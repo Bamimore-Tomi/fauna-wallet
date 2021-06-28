@@ -127,11 +127,10 @@ def send_trx(sender_private_key, reciever_address, amount):
     tron = Tron()
     tron.private_key = private_key
     tron.default_address = tron.address.from_private_key(tron.private_key)["base58"]
-    print(tron.default_address)
     reciever_address = _validate_address(reciever_address)
     balance = get_balance(tron.default_address["base58"])
     print(balance)
-    if amount > balance:
+    if balance == 0 or amount > balance:
         raise errors.InsufficientBalance
     transaction = tron.trx.send(reciever_address, amount)
     return True
