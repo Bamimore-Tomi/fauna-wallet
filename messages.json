@@ -13,5 +13,7 @@
     "recieverAddress": "Please provide the recipient's TRX wallet address.",
     "transactionSuccess": "You have successfully transferred {} TRX from {} to {}.",
     "transactionUnsuccessful": "Unable to transfer {} TRX from {} to {}. **Reason {}**",
-    "incorrectAddress": "Wallet address *{}* is not valid."
+    "incorrectAddress": "Wallet address *{}* is not valid.",
+    "deleteWalletSuccess": "*Delete operation successful*",
+    "deleteWalletNotSuccessful": "*Delete operation not successful"
 }

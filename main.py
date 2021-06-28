@@ -29,9 +29,14 @@ messages = utils.load_messages()
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
 )
-ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER, RECIEVER_ADDRESS = range(
-    5
-)
+(
+    ASK_WALLET_NAME,
+    ALL_WALLET,
+    WALLET_SELECTION,
+    AMOUNT_NUMBER,
+    RECIEVER_ADDRESS,
+    DELETE_WALLET,
+) = range(6)
 
 
 def start(update, context):
@@ -233,6 +238,42 @@ def all_wallet(update, context):
     return ALL_WALLET
 
 
+def delete_wallet_select(update, context):
+    chat_id = update.effective_chat.id
+    try:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["allWalletFound"],
+            reply_markup=utils.generate_wallet_menu(client, chat_id, with_ref=True),
+        )
+        return DELETE_WALLET
+    except errors.WalletNotFound:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["allWalletNotFound"],
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
+        return -1
+
+
+def delete_wallet(update, context):
+    chat_id = update.effective_chat.id
+    query_data = update.callback_query.data
+    try:
+        utils.delete_wallet(client, chat_id, query_data)
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["deleteWalletSuccess"].format(query_data),
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
+    except errors.WalletNotFound:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["walletNotFound"].format(wallet_name),
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
+
+
 def main():
     updater = Updater(token=os.getenv("TOKEN"), use_context=True)
     dispatcher = updater.dispatcher
@@ -243,11 +284,13 @@ def main():
         states={
             ASK_WALLET_NAME: [MessageHandler(Filters.regex(r"\w*"), create_wallet)]
         },
+        allow_reentry=True,
         fallbacks=[CommandHandler("newwallet", new_wallet)],
     )
     wallet_operation = ConversationHandler(
         entry_points=[CommandHandler("allwallet", all_wallet)],
         states={ALL_WALLET: [CallbackQueryHandler(wallet_detail_callback)]},
+        allow_reentry=True,
         fallbacks=[CommandHandler("allwallet", all_wallet)],
     )
 
@@ -260,7 +303,15 @@ def main():
             ],
             RECIEVER_ADDRESS: [MessageHandler(Filters.regex(r"\w*"), send_transaction)],
         },
+        allow_reentry=True,
         fallbacks=[CommandHandler("sendtoken", send_token)],
+    )
+
+    delete_operation = ConversationHandler(
+        entry_points=[CommandHandler("deletewallet", delete_wallet_select)],
+        states={DELETE_WALLET: [CallbackQueryHandler(delete_wallet)]},
+        allow_reentry=True,
+        fallbacks=[CommandHandler("deletewallet", delete_wallet_select)],
     )
 
     dispatcher.add_handler(entry_)
@@ -268,6 +319,7 @@ def main():
     dispatcher.add_handler(new_wallet_conv)
     dispatcher.add_handler(wallet_operation)
     dispatcher.add_handler(send_operation)
+    dispatcher.add_handler(delete_operation)
 
     updater.start_polling()
     updater.idle()

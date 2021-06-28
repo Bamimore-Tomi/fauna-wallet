@@ -87,6 +87,7 @@ def get_wallets(client, user_id, wallet_name=None):
         q.get(q.ref(q.collection("wallet"), wallet.id())) for wallet in wallets["data"]
     ]
     wallets_data = client.query(wallets_data)
+    result = []
     if wallet_name != None:
         for i in wallets_data:
             if i["data"]["wallet_name"] == wallet_name:
@@ -94,12 +95,17 @@ def get_wallets(client, user_id, wallet_name=None):
                 wallet = i["data"]
                 return wallet
         raise errors.WalletNotFound
-    return [i["data"] for i in wallets_data]
+    else:
+        for i in wallets_data:
+            i["data"]["ref"] = i["ref"].id()
+            result.append(i["data"])
+
+    return result
 
 
-def generate_wallet_menu(client, user_id):
+def generate_wallet_menu(client, user_id, with_address=False, with_ref=False):
     data = get_wallets(client, user_id)
-    menu = keyboards.wallet_menu(data)
+    menu = keyboards.wallet_menu(data, with_address=with_address, with_ref=with_ref)
     return menu
 
 
@@ -181,6 +187,15 @@ def create_wallet(client, user_id, wallet_name) -> bool:
     )
     save_wallets(client)
     return address.base58
+
+
+def delete_wallet(client, user_id, wallet_ref):
+    try:
+        client.query(q.delete(q.ref(q.collection("wallet"), wallet_ref)))
+    except NotFound:
+        raise errors.WalletNotFound
+    except Exception as e:
+        print(e)
 
 
 def save_wallets(client):
