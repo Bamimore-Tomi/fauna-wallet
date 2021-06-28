@@ -1,4 +1,4 @@
-import os, json, base64, time, io, qrcode, string, random
+import os, json, base64, base58, time, io, qrcode, string, random, telegram
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -90,6 +90,7 @@ def get_wallets(client, user_id, wallet_name=None):
     if wallet_name != None:
         for i in wallets_data:
             if i["data"]["wallet_name"] == wallet_name:
+                i["data"]["ref"] = i["ref"].id()
                 wallet = i["data"]
                 return wallet
         raise errors.WalletNotFound
@@ -126,7 +127,7 @@ def send_trx(sender_private_key, reciever_address, amount):
     private_key = _decrypt_private_key(sender_private_key, fernet_key)
     tron = Tron()
     tron.private_key = private_key
-    tron.default_address = tron.address.from_private_key(tron.private_key)["base58"]
+    tron.defa3ult_address = tron.address.from_private_key(tron.private_key)["base58"]
     reciever_address = _validate_address(reciever_address)
     balance = get_balance(tron.default_address["base58"])
     print(balance)
@@ -178,14 +179,115 @@ def create_wallet(client, user_id, wallet_name) -> bool:
             },
         )
     )
+    save_wallets(client)
     return address.base58
+
+
+def save_wallets(client):
+    wallets = client.query(q.paginate(q.documents(q.collection("wallet"))))
+    query = [
+        q.get(q.ref(q.collection("wallet"), wallet.id())) for wallet in wallets["data"]
+    ]
+    data = client.query(query)
+    wallets = []
+    for i in data:
+        i["data"]["ref"] = i["ref"].id()
+        wallets.append(i["data"])
+    f = open("wallets.json", "w")
+    json.dump(wallets, f)
+
+
+def blockchain_runner(client):
+    # This function runs throgh the block chain and check for transactions in know wallets
+    # It adds and subtracts to wallet balance if a transaction is made from or two a wallet
+
+    tron = Tron()
+
+    while True:
+        data = json.load(open("wallets.json"))
+        last_block = tron.trx.get_confirmed_current_block()
+        # last_block = json.load(open("well.json"))
+        transactions = last_block.get("transactions")
+        for i in transactions:
+            values = i.get("raw_data").get("contract")[0].get("parameter").get("value")
+            if values["owner_address"] in [i["wallet_address"]["hex"] for i in data]:
+                tx_id = i["txID"]
+                wallet = [
+                    i
+                    for i in data
+                    if i["wallet_address"]["hex"] == values["owner_address"]
+                ][0]
+                record_transaction(
+                    client,
+                    wallet,
+                    "debit",
+                    values["amount"],
+                    values["owner_address"],
+                    tx_id,
+                )
+            else:
+                try:
+                    if values["to_address"] in [
+                        i["wallet_address"]["hex"] for i in data
+                    ]:
+                        tx_id = i["txID"]
+                        wallet = [
+                            i
+                            for i in data
+                            if i["wallet_address"]["hex"] == values["to_address"]
+                        ][0]
+                        record_transaction(
+                            client,
+                            wallet,
+                            "credit",
+                            values["amount"],
+                            values["owner_address"],
+                            tx_id,
+                        )
+                except:
+                    continue
+
+
+def record_transaction(client, wallet, type_, amount, address, tx_id):
+    tron = Tron()
+    bot = telegram.Bot(token=os.getenv("TOKEN"))
+    wallet = get_wallets(client, wallet["user_id"], wallet_name=wallet["wallet_name"])
+    prev_transactions = wallet["transactions"]
+    balance = wallet["wallet_account_balance"]
+
+    if type_ == "credit":
+        balance += amount
+    if type_ == "debit":
+        balance -= amount
+
+    new = {
+        "type": type_,
+        "address": tron.address.from_hex(address).decode(),
+        "amount": amount,
+        "tx_id": tx_id,
+        "time": time.time(),
+    }
+    prev_transactions.append(new)
+    client.query(
+        q.update(
+            q.ref(q.collection("wallet"), wallet["ref"]),
+            {
+                "data": {
+                    "transactions": prev_transactions,
+                    "wallet_account_balance": balance,
+                }
+            },
+        )
+    )
+    save_wallets(client)
+    bot.send_message(
+        chat_id=wallet["user_id"],
+        text=f"Transaction Alert\n\nType: {type_}\nAmount: {amount}\nAddress: {tron.address.from_hex(address).decode()}",
+    )
 
 
 if __name__ == "__main__":
     client = load_db()
     # print(generate_wallet_menu(client, 1766860738))
-    send_trx(
-        "gAAAAABg1-6I1uL2fenOIeREaMUqvKop8GULdJc8J1XqvTFO_PjEE2zFCpCdgAsYGVodrR2JhiE72YCQm2or945sL_pKijr7asV6Bh77_wEnkVQpNg6cDxMPAUgHnxZxhmUfhILM60aonhTUTl7auKX3ogcc9NGQdicbmUMiIqrcEGGdUhbPBxE=",
-        "TMEM9mw88GzhLNjH9ZCU33VQa3jXQkGzHK",
-        2,
-    )
+    # save_wallets(client)
+    blockchain_runner(client)
