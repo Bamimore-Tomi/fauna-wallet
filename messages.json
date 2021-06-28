@@ -12,5 +12,6 @@
     "invalidAmountType": "You have entered an invalid amount. Please enter a number like 1.0",
     "recieverAddress": "Please provide the recipient's TRX wallet address.",
     "transactionSuccess": "You have successfully transferred {} TRX from {} to {}.",
-    "transactionUnsuccessful": "Unable to transfer {} TRX from {} to {}. **Reason {}**"
+    "transactionUnsuccessful": "Unable to transfer {} TRX from {} to {}. **Reason {}**",
+    "incorrectAddress": "Wallet address *{}* is not valid."
 }

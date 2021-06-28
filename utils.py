@@ -127,8 +127,10 @@ def send_trx(sender_private_key, reciever_address, amount):
     tron = Tron()
     tron.private_key = private_key
     tron.default_address = tron.address.from_private_key(tron.private_key)["base58"]
+    print(tron.default_address)
     reciever_address = _validate_address(reciever_address)
-    balance = get_balance(tron.default_address)
+    balance = get_balance(tron.default_address["base58"])
+    print(balance)
     if amount > balance:
         raise errors.InsufficientBalance
     transaction = tron.trx.send(reciever_address, amount)
@@ -183,4 +185,8 @@ def create_wallet(client, user_id, wallet_name) -> bool:
 if __name__ == "__main__":
     client = load_db()
     # print(generate_wallet_menu(client, 1766860738))
-    get_wallet_detail(client, 1766860738, "xoxo")
+    send_trx(
+        "gAAAAABg1-6I1uL2fenOIeREaMUqvKop8GULdJc8J1XqvTFO_PjEE2zFCpCdgAsYGVodrR2JhiE72YCQm2or945sL_pKijr7asV6Bh77_wEnkVQpNg6cDxMPAUgHnxZxhmUfhILM60aonhTUTl7auKX3ogcc9NGQdicbmUMiIqrcEGGdUhbPBxE=",
+        "TMEM9mw88GzhLNjH9ZCU33VQa3jXQkGzHK",
+        2,
+    )

@@ -26,10 +26,12 @@ import errors
 load_dotenv()
 client = utils.load_db()
 messages = utils.load_messages()
-# logging.basicConfig(
-#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
-# )
-ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER , RECIEVER_ADDRESS= range(5)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.DEBUG
+)
+ASK_WALLET_NAME, ALL_WALLET, WALLET_SELECTION, AMOUNT_NUMBER, RECIEVER_ADDRESS = range(
+    5
+)
 
 
 def start(update, context):
@@ -99,11 +101,14 @@ def wallet_detail_callback(update, context):
                 wallet["wallet_address"]["base58"],
                 wallet["wallet_account_balance"],
             ),
+            parse_mode=telegram.ParseMode.MARKDOWN,
         )
         context.bot.sendPhoto(chat_id=chat_id, photo=stream)
     except errors.WalletNotFound:
         context.bot.send_message(
-            chat_id=chat_id, text=messages["walletNotFound"].format(query_data)
+            chat_id=chat_id,
+            text=messages["walletNotFound"].format(query_data),
+            parse_mode=telegram.ParseMode.MARKDOWN,
         )
 
 
@@ -113,6 +118,7 @@ def send_token(update, context):
         chat_id=chat_id,
         text=messages["sendTokenInstruction"],
         reply_markup=utils.generate_wallet_keyboard(client, chat_id),
+        parse_mode=telegram.ParseMode.MARKDOWN,
     )
     return WALLET_SELECTION
 
@@ -127,10 +133,13 @@ def ask_amount(update, context):
         context.bot.send_message(
             chat_id=chat_id,
             text=messages["askAmount"].format(wallet["wallet_account_balance"]),
+            parse_mode=telegram.ParseMode.MARKDOWN,
         )
     except errors.WalletNotFound:
         context.bot.send_message(
-            chat_id=chat_id, text=messages["walletNotFound"].format(query_data)
+            chat_id=chat_id,
+            text=messages["walletNotFound"].format(wallet_name),
+            parse_mode=telegram.ParseMode.MARKDOWN,
         )
     return AMOUNT_NUMBER
 
@@ -142,18 +151,24 @@ def ask_reciever_address(update, context):
     try:
         amount = int(amount)
         context.user_data["current_amount"] = amount
-        is_valid = False
+        is_valid = True
     except:
         is_valid = False
     while is_valid == False:
         return WALLET_SELECTION
-    context.bot.send_message(chat_id=chat_id, text=messages["recieverAddress"])
+    context.bot.send_message(
+        chat_id=chat_id,
+        text=messages["recieverAddress"],
+        parse_mode=telegram.ParseMode.MARKDOWN,
+    )
     return RECIEVER_ADDRESS
 
 
 def send_transaction(update, context):
+
     chat_id = update.effective_chat.id
     address = update.message.text.strip()
+    print(address)
     try:
         send = utils.send_trx(
             context.user_data["current_wallet"]["encrypted_private_key"],
@@ -168,6 +183,7 @@ def send_transaction(update, context):
                     context.user_data["current_wallet"]["wallet_name"],
                     address,
                 ),
+                parse_mode=telegram.ParseMode.MARKDOWN,
             )
     except errors.InsufficientBalance:
         context.bot.send_message(
@@ -178,8 +194,15 @@ def send_transaction(update, context):
                 address,
                 "Insufficient Balance",
             ),
+            parse_mode=telegram.ParseMode.MARKDOWN,
         )
         return WALLET_SELECTION
+    except ValueError:
+        context.bot.send_message(
+            chat_id=chat_id,
+            text=messages["incorrectAddress"].format(address),
+            parse_mode=telegram.ParseMode.MARKDOWN,
+        )
 
 
 def create_wallet(update, context):
@@ -228,14 +251,15 @@ def main():
         states={ALL_WALLET: [CallbackQueryHandler(wallet_detail_callback)]},
         fallbacks=[CommandHandler("allwallet", all_wallet)],
     )
+
     send_operation = ConversationHandler(
         entry_points=[CommandHandler("sendtoken", send_token)],
         states={
             WALLET_SELECTION: [MessageHandler(Filters.regex(r"\w*"), ask_amount)],
             AMOUNT_NUMBER: [
                 MessageHandler(Filters.regex(r"\w*"), ask_reciever_address)
-            ]
-            RECIEVER_ADDRESS: [MessageHandler(Filters.regex(r"\w*"), send_transaction)]
+            ],
+            RECIEVER_ADDRESS: [MessageHandler(Filters.regex(r"\w*"), send_transaction)],
         },
         fallbacks=[CommandHandler("sendtoken", send_token)],
     )
