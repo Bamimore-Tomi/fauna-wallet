@@ -262,6 +262,7 @@ def delete_wallet_select(update, context):
 def delete_wallet(update, context):
     chat_id = update.effective_chat.id
     query_data = update.callback_query.data
+    print(query_data)
     try:
         utils.delete_wallet(client, chat_id, query_data)
         context.bot.send_message(
