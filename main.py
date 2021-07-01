@@ -306,7 +306,6 @@ def main():
             ],
             RECIEVER_ADDRESS: [MessageHandler(Filters.regex(r"\w*"), send_transaction)],
         },
-        allow_reentry=True,
         fallbacks=[CommandHandler("sendtoken", send_token)],
     )
 
