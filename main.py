@@ -313,7 +313,6 @@ def main():
     delete_operation = ConversationHandler(
         entry_points=[CommandHandler("deletewallet", delete_wallet_select)],
         states={DELETE_WALLET: [CallbackQueryHandler(delete_wallet)]},
-        allow_reentry=True,
         fallbacks=[CommandHandler("deletewallet", delete_wallet_select)],
     )
 
