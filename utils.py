@@ -1,4 +1,5 @@
 import os, json, base64, base58, time, io, string, random
+from typing import Optional
 from faunadb import query as q
 from faunadb.objects import Ref
 from faunadb.client import FaunaClient
@@ -63,13 +64,13 @@ def _encrypt_private_key(private_key: str, fernet_key: str) -> str:
     return hash.decode()
 
 
-def _decrypt_private_key(hash, key) -> str:
+def _decrypt_private_key(hash, key: str) -> str:
     decryptor = Fernet(key)
     private_key = decryptor.decrypt(hash.encode())
     return private_key.decode()
 
 
-def save_user(client, data):
+def save_user(client: FaunaClient, data: dict):
     user = client.query(
         q.create(
             q.collection("user"),
@@ -78,7 +79,7 @@ def save_user(client, data):
     )
 
 
-def get_wallets(client, user_id, wallet_name=None):
+def get_wallets(client: FaunaClient, user_id: int, wallet_name: Optional[str] = None):
     wallets = client.query(q.paginate(q.match(q.index("wallet_index"), user_id)))
     if len(wallets["data"]) < 1:
         raise errors.WalletNotFound
@@ -103,19 +104,24 @@ def get_wallets(client, user_id, wallet_name=None):
     return result
 
 
-def generate_wallet_menu(client, user_id, with_address=False, with_ref=False):
+def generate_wallet_menu(
+    client: FaunaClient,
+    user_id: int,
+    with_address: Optional[bool] = False,
+    with_ref: Optional[bool] = False,
+):
     data = get_wallets(client, user_id)
     menu = keyboards.wallet_menu(data, with_address=with_address, with_ref=with_ref)
     return menu
 
 
-def generate_wallet_keyboard(client, user_id):
+def generate_wallet_keyboard(client: FaunaClient, user_id: int):
     data = get_wallets(client, user_id)
     keyboard = keyboards.wallet_keyboard(data)
     return keyboard
 
 
-def _validate_address(address):
+def _validate_address(address: str):
     tron = Tron()
     validate = tron.trx.validate_address(address)
     if validate.get("result") == False:
@@ -123,12 +129,12 @@ def _validate_address(address):
     return address
 
 
-def get_balance(address):
+def get_balance(address: str):
     tron = Tron()
     return tron.fromSun(tron.trx.get_balance(address))
 
 
-def send_trx(sender_private_key, reciever_address, amount):
+def send_trx(sender_private_key: str, reciever_address: str, amount: int):
     fernet_key = _generate_fernet_key(os.getenv("MASTER"), os.getenv("SALT"))
     private_key = _decrypt_private_key(sender_private_key, fernet_key)
     tron = Tron()
@@ -143,7 +149,7 @@ def send_trx(sender_private_key, reciever_address, amount):
     return True
 
 
-def _get_qr_code(wallet_address):
+def _get_qr_code(wallet_address: str):
     img = qrcode.make(wallet_address)
     imgByteArr = io.BytesIO()
     img.save(imgByteArr, format=img.format)
@@ -152,7 +158,7 @@ def _get_qr_code(wallet_address):
     return imgByteArr
 
 
-def get_wallet_detail(client, user_id, wallet_name):
+def get_wallet_detail(client: FaunaClient, user_id: int, wallet_name: str):
     wallet = get_wallets(client, user_id, wallet_name)
     qr_byte = _get_qr_code(wallet["wallet_address"])
     file_name = random_string(length=5) + ".png"
@@ -162,7 +168,7 @@ def get_wallet_detail(client, user_id, wallet_name):
     return wallet, stream
 
 
-def create_wallet(client, user_id, wallet_name) -> bool:
+def create_wallet(client: FaunaClient, user_id: int, wallet_name: str) -> bool:
     tron = Tron()
     account = tron.create_account
     address = account.address
@@ -189,7 +195,7 @@ def create_wallet(client, user_id, wallet_name) -> bool:
     return address.base58
 
 
-def delete_wallet(client, user_id, wallet_ref):
+def delete_wallet(client: FaunaClient, user_id: int, wallet_ref: str):
     try:
         client.query(q.delete(q.ref(q.collection("wallet"), wallet_ref)))
     except NotFound:
@@ -198,7 +204,7 @@ def delete_wallet(client, user_id, wallet_ref):
         print(e)
 
 
-def save_wallets(client):
+def save_wallets(client: FaunaClient):
     wallets = client.query(q.paginate(q.documents(q.collection("wallet"))))
     query = [
         q.get(q.ref(q.collection("wallet"), wallet.id())) for wallet in wallets["data"]
@@ -263,7 +269,9 @@ def blockchain_runner():
                     continue
 
 
-def record_transaction(client, wallet, type_, amount, address, tx_id):
+def record_transaction(
+    client: FaunaClient, wallet: dict, type_: str, amount: int, address: str, tx_id: str
+):
     tron = Tron()
     bot = telegram.Bot(token=os.getenv("TOKEN"))
     wallet = get_wallets(client, wallet["user_id"], wallet_name=wallet["wallet_name"])
