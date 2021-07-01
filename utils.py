@@ -136,21 +136,6 @@ def get_balance(address: str):
     return tron.fromSun(tron.trx.get_balance(address))
 
 
-def send_trx(sender_private_key: str, reciever_address: str, amount: int):
-    fernet_key = _generate_fernet_key(os.getenv("MASTER"), os.getenv("SALT"))
-    private_key = _decrypt_private_key(sender_private_key, fernet_key)
-    tron = Tron()
-    tron.private_key = private_key
-    tron.defa3ult_address = tron.address.from_private_key(tron.private_key)["base58"]
-    reciever_address = _validate_address(reciever_address)
-    balance = get_balance(tron.default_address["base58"])
-    print(balance)
-    if balance == 0 or amount > balance:
-        raise errors.InsufficientBalance
-    transaction = tron.trx.send(reciever_address, amount)
-    return True
-
-
 def _get_qr_code(wallet_address: str):
     img = qrcode.make(wallet_address)
     imgByteArr = io.BytesIO()
@@ -311,8 +296,27 @@ def record_transaction(
     )
 
 
+def send_trx(sender_private_key: str, reciever_address: str, amount: int):
+    fernet_key = _generate_fernet_key(os.getenv("MASTER"), os.getenv("SALT"))
+    private_key = _decrypt_private_key(sender_private_key, fernet_key)
+    tron = Tron()
+    tron.private_key = private_key
+    tron.default_address = tron.address.from_private_key(tron.private_key)["base58"]
+    reciever_address = _validate_address(reciever_address)
+    balance = get_balance(tron.default_address["base58"])
+    print(balance)
+    if balance == 0 or amount > balance:
+        raise errors.InsufficientBalance
+    transaction = tron.trx.send(reciever_address, amount)
+    return True
+
+
 if __name__ == "__main__":
     client = load_db()
     # print(generate_wallet_menu(client, 1766860738))
     # save_wallets(client)
-    blockchain_runner(client)
+    send_trx(
+        "gAAAAABg3eVzHt6OCKCv-7MptG3oLKcZxE3npAX3-Xe8LubcKHLs0YJ-El0QwjmdO-7hxjCN1ae3JglhEWf7aaZ3SZRpgiRZHG_SjhJCTQdfu2l7RUKOP3bfNfsRNNWysMwdDwSo4KRpagMyUMNhnfppUX-Ph21dgioq7IHmQZuh3w_fUz96Hjo=",
+        "TNvuB92YzbdncYhteNX2TPGmX61QxQBDsv",
+        7,
+    )
