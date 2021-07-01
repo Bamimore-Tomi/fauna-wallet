@@ -80,7 +80,9 @@ def save_user(client: FaunaClient, data: dict):
 
 
 def get_wallets(client: FaunaClient, user_id: int, wallet_name: Optional[str] = None):
-    wallets = client.query(q.paginate(q.match(q.index("wallet_index"), user_id)))
+    wallets = client.query(
+        q.paginate(q.match(q.index("wallet_index"), user_id), size="100_000")
+    )
     if len(wallets["data"]) < 1:
         raise errors.WalletNotFound
 
