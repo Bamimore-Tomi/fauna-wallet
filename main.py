@@ -202,13 +202,14 @@ def send_transaction(update, context):
             ),
             parse_mode=telegram.ParseMode.MARKDOWN,
         )
-        return WALLET_SELECTION
+        return -1
     except ValueError:
         context.bot.send_message(
             chat_id=chat_id,
             text=messages["incorrectAddress"].format(address),
             parse_mode=telegram.ParseMode.MARKDOWN,
         )
+        return -1
 
 
 def create_wallet(update, context):
